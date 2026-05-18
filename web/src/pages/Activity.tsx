@@ -2,7 +2,11 @@ import { ActivityFeed } from "../components/ActivityFeed";
 import { Leaderboard } from "../components/Leaderboard";
 import { VolumeChart } from "../components/VolumeChart";
 
-export function Activity() {
+interface ActivityProps {
+    onSubmitReceipt?: (jobId: `0x${string}`) => void;
+}
+
+export function Activity({ onSubmitReceipt }: ActivityProps) {
     return (
         <div className="space-y-8">
             <header>
@@ -17,7 +21,7 @@ export function Activity() {
 
             <div className="grid gap-6 lg:grid-cols-3">
                 <div className="lg:col-span-2">
-                    <ActivityFeed />
+                    <ActivityFeed onSubmitReceipt={onSubmitReceipt} />
                 </div>
                 <Leaderboard />
             </div>

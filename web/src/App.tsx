@@ -15,6 +15,12 @@ export default function App() {
     const [tab, setTab] = useState<"agents" | "jobs" | "activity">("agents");
     const [picked, setPicked] = useState<AgentRow | null>(null);
     const [receiptOpen, setReceiptOpen] = useState(false);
+    const [receiptJobId, setReceiptJobId] = useState<`0x${string}` | undefined>(undefined);
+
+    function openReceiptDialog(jobId?: `0x${string}`) {
+        setReceiptJobId(jobId);
+        setReceiptOpen(true);
+    }
 
     return (
         <Layout active={tab} onSelect={(id) => setTab(id as typeof tab)}>
@@ -26,16 +32,19 @@ export default function App() {
                     </section>
                 </div>
             ) : tab === "jobs" ? (
-                <JobsTab onSubmitReceipt={() => setReceiptOpen(true)} onPick={setPicked} />
+                <JobsTab onSubmitReceipt={() => openReceiptDialog()} onPick={setPicked} />
             ) : (
-                <Activity />
+                <Activity onSubmitReceipt={(id) => openReceiptDialog(id)} />
             )}
 
             <OpenJobDialog open={picked !== null} onClose={() => setPicked(null)} agent={picked} />
             <SubmitReceiptDialog
                 open={receiptOpen}
-                onClose={() => setReceiptOpen(false)}
-                jobId={undefined}
+                onClose={() => {
+                    setReceiptOpen(false);
+                    setReceiptJobId(undefined);
+                }}
+                initialJobId={receiptJobId}
             />
         </Layout>
     );

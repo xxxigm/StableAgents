@@ -1,18 +1,19 @@
 /**
- * Canonical contract addresses for StableAgents on Arc Testnet.
+ * Canonical contract addresses for StableAgents on Arc Testnet (chain 5042002).
  *
- * The four StableAgents addresses below are placeholders for a fresh
- * deploy — fill them in after running `forge script script/Deploy.s.sol`.
+ * Deployed on 2026-05-18 at blocks 42854917-42854934 by
+ * 0xbC1010326F9BBc24e81a985BEC235D3e43B19E59.
+ *
  * The three "external" addresses (USDC, IdentityRegistry, CCTP transmitter)
  * are network-canonical and never change for the lifetime of Arc Testnet.
  */
 export const contracts = {
-    // --- StableAgents stack (fill after deploy) -------------------------
-    agentRegistry: "0x0000000000000000000000000000000000000000" as const,
-    jobEscrow: "0x0000000000000000000000000000000000000000" as const,
-    crossChainGateway: "0x0000000000000000000000000000000000000000" as const,
-    x402Middleware: "0x0000000000000000000000000000000000000000" as const,
-    oneShotEnroll: "0x0000000000000000000000000000000000000000" as const,
+    // --- StableAgents stack ---------------------------------------------
+    agentRegistry: "0x833D73f977a159854FC29e60522c2FD133E5a567" as const,
+    jobEscrow: "0xe219f16D4ef5DFF479f63DbdeBA3a42963af7111" as const,
+    crossChainGateway: "0x5c349C215f0D5FB6e1A604db832b6c61B71f5CFE" as const,
+    x402Middleware: "0x7962B955AFd80E00448be5E112a2B916D7650eeB" as const,
+    oneShotEnroll: "0xE968f419Dc1f6709ee91038a5B1F368597cB6558" as const,
 
     // --- External anchors (canonical, do not change) --------------------
     usdc: "0x3600000000000000000000000000000000000000" as const,

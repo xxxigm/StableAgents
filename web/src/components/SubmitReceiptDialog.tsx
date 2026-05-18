@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { keccak256, stringToBytes } from "viem";
 import { useAccount, useSignTypedData, useWriteContract } from "wagmi";
 
@@ -9,56 +9,81 @@ import { contracts, receiptDomain, receiptTypes } from "../lib/contracts";
 interface SubmitReceiptDialogProps {
     open: boolean;
     onClose: () => void;
-    jobId?: `0x${string}`;
+    /** Prefilled value when the dialog opens (from clicking a row in
+     *  ActivityFeed). User can still edit / paste another jobId. */
+    initialJobId?: `0x${string}`;
 }
 
-/**
- * Two-step receipt flow:
- *   1. Sign an EIP-712 Receipt(jobId, responseHash) with the agent's
- *      signer key. The wallet displays each field by name so the operator
- *      audits exactly what is being attested.
- *   2. Anyone (in practice the agent's backend) submits the signature
- *      on-chain via JobEscrow.submitReceipt(jobId, responseHash, sig).
- *
- * The signer key and the on-chain caller can be different — the contract
- * verifies signer == registry.getAgent(agentId).signer, not msg.sender.
- */
-export function SubmitReceiptDialog({ open, onClose, jobId }: SubmitReceiptDialogProps) {
+const JOB_ID_REGEX = /^0x[0-9a-fA-F]{64}$/;
+
+export function SubmitReceiptDialog({ open, onClose, initialJobId }: SubmitReceiptDialogProps) {
     const { isConnected } = useAccount();
     const { signTypedDataAsync, isPending: signing } = useSignTypedData();
     const { writeContractAsync, isPending: submitting } = useWriteContract();
 
+    const [jobIdInput, setJobIdInput] = useState("");
     const [responseText, setResponseText] = useState("");
     const [signature, setSignature] = useState<`0x${string}` | null>(null);
     const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
-    if (!jobId) return null;
+    useEffect(() => {
+        if (open && initialJobId) {
+            setJobIdInput(initialJobId);
+        }
+    }, [open, initialJobId]);
 
-    const responseHash = (
-        responseText.length > 0
-            ? keccak256(stringToBytes(responseText))
-            : "0x" + "00".repeat(32)
-    ) as `0x${string}`;
+    const trimmedJobId = jobIdInput.trim();
+    const jobId: `0x${string}` | undefined = JOB_ID_REGEX.test(trimmedJobId)
+        ? (trimmedJobId as `0x${string}`)
+        : undefined;
+
+    const responseHash = useMemo(
+        () =>
+            (responseText.length > 0
+                ? keccak256(stringToBytes(responseText))
+                : "0x" + "00".repeat(32)) as `0x${string}`,
+        [responseText],
+    );
+
+    function reset() {
+        setJobIdInput("");
+        setResponseText("");
+        setSignature(null);
+        setTxHash(null);
+        setError(null);
+    }
 
     async function onSign() {
-        const sig = await signTypedDataAsync({
-            domain: receiptDomain,
-            types: receiptTypes,
-            primaryType: "Receipt",
-            message: { jobId: jobId!, responseHash },
-        });
-        setSignature(sig);
+        if (!jobId) return;
+        setError(null);
+        try {
+            const sig = await signTypedDataAsync({
+                domain: receiptDomain,
+                types: receiptTypes,
+                primaryType: "Receipt",
+                message: { jobId, responseHash },
+            });
+            setSignature(sig);
+        } catch (err) {
+            setError((err as Error).message ?? "Sign failed");
+        }
     }
 
     async function onSubmit() {
-        if (!signature) return;
-        const hash = await writeContractAsync({
-            address: contracts.jobEscrow,
-            abi: jobEscrowAbi,
-            functionName: "submitReceipt",
-            args: [jobId!, responseHash, signature],
-        });
-        setTxHash(hash);
+        if (!signature || !jobId) return;
+        setError(null);
+        try {
+            const hash = await writeContractAsync({
+                address: contracts.jobEscrow,
+                abi: jobEscrowAbi,
+                functionName: "submitReceipt",
+                args: [jobId, responseHash, signature],
+            });
+            setTxHash(hash);
+        } catch (err) {
+            setError((err as Error).message ?? "Submit failed");
+        }
     }
 
     return (
@@ -66,18 +91,28 @@ export function SubmitReceiptDialog({ open, onClose, jobId }: SubmitReceiptDialo
             open={open}
             onClose={() => {
                 onClose();
-                setResponseText("");
-                setSignature(null);
-                setTxHash(null);
+                reset();
             }}
             eyebrow="agent action"
             title="Submit receipt"
         >
-            <div className="rounded-md border border-line bg-surface-0 p-3 font-mono text-[11px] text-zinc-400">
-                <p>
-                    jobId{" "}
-                    <span className="text-zinc-200">{jobId.slice(0, 18)}…{jobId.slice(-6)}</span>
-                </p>
+            <label className="block">
+                <span className="text-eyebrow uppercase text-zinc-500">Job ID</span>
+                <input
+                    value={jobIdInput}
+                    onChange={(e) => setJobIdInput(e.target.value)}
+                    placeholder="0x… (64 hex chars, paste from Activity feed)"
+                    spellCheck={false}
+                    className="mt-1 w-full rounded-md border border-line bg-surface-0 px-3 py-2 font-mono text-xs text-zinc-200 outline-none focus:border-line-strong"
+                />
+                {jobIdInput.length > 0 && !jobId ? (
+                    <p className="mt-1 font-mono text-[10px] text-danger">
+                        not a valid bytes32 — expected 0x + 64 hex chars
+                    </p>
+                ) : null}
+            </label>
+
+            <div className="mt-4 rounded-md border border-line bg-surface-0 p-3 font-mono text-[11px] text-zinc-400">
                 <p>
                     responseHash <span className="text-zinc-200">{responseHash.slice(0, 18)}…</span>
                 </p>
@@ -106,7 +141,7 @@ export function SubmitReceiptDialog({ open, onClose, jobId }: SubmitReceiptDialo
                         <span className="tnum text-zinc-500">1.</span> Sign EIP-712 receipt
                     </span>
                     <button
-                        disabled={!isConnected || signing}
+                        disabled={!isConnected || !jobId || signing}
                         onClick={onSign}
                         className="rounded-md border border-line bg-surface-1 px-3 py-1 text-xs hover:bg-surface-2 disabled:opacity-50"
                     >
@@ -118,7 +153,7 @@ export function SubmitReceiptDialog({ open, onClose, jobId }: SubmitReceiptDialo
                         <span className="tnum text-zinc-500">2.</span> Submit on-chain
                     </span>
                     <button
-                        disabled={!signature || submitting}
+                        disabled={!signature || !jobId || submitting}
                         onClick={onSubmit}
                         className="rounded-md bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-900 hover:bg-white disabled:opacity-50"
                     >
@@ -126,6 +161,10 @@ export function SubmitReceiptDialog({ open, onClose, jobId }: SubmitReceiptDialo
                     </button>
                 </li>
             </ol>
+
+            {error ? (
+                <p className="mt-3 font-mono text-[10px] text-danger break-words">{error}</p>
+            ) : null}
 
             {txHash ? (
                 <p className="mt-4 text-xs text-zinc-400">

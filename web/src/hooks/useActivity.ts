@@ -15,6 +15,10 @@ export interface ActivityItem {
     txHash: `0x${string}`;
     blockNumber: bigint;
     timestamp?: number;
+    /** Only set for kind="opened": unix seconds when caller can claim timeout. */
+    deadline?: number;
+    /** Only set for kind="opened": true if a matching accepted/slashed event exists. */
+    closed?: boolean;
 }
 
 const JOB_OPENED = parseAbiItem(
@@ -63,6 +67,13 @@ export function useActivity(lookbackBlocks = 50_000) {
                 }),
             ]);
 
+            // Build a set of jobIds that have already been closed (accepted or
+            // slashed) so the UI can decide whether an "opened" row still has
+            // actionable buttons or is just historical.
+            const closedJobIds = new Set<string>();
+            for (const log of accepted) closedJobIds.add(log.args.jobId!);
+            for (const log of slashed) closedJobIds.add(log.args.jobId!);
+
             const items: ActivityItem[] = [];
             for (const log of opened) {
                 items.push({
@@ -72,6 +83,8 @@ export function useActivity(lookbackBlocks = 50_000) {
                     amount: log.args.amount,
                     txHash: log.transactionHash,
                     blockNumber: log.blockNumber,
+                    deadline: Number(log.args.deadline!),
+                    closed: closedJobIds.has(log.args.jobId!),
                 });
             }
             for (const log of accepted) {

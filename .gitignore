@@ -1,0 +1,23 @@
+# foundry
+out/
+cache/
+broadcast/
+!broadcast/*/dry-run/
+
+# deps (submodules are tracked via .gitmodules; ignore everything else inside lib)
+node_modules/
+
+# env
+.env
+.env.*
+!.env.example
+
+# editor / os
+.DS_Store
+*.log
+.vscode/
+.idea/
+
+# web build
+web/dist/
+web/.vite/

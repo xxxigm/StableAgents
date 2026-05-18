@@ -96,6 +96,7 @@ contract AgentRegistry is IAgentRegistry, ReentrancyGuard {
     event PriceUpdated(uint256 indexed agentId, uint256 newPrice);
     event SignerUpdated(uint256 indexed agentId, address newSigner);
     event JobEscrowSet(address indexed escrow);
+    event ReputationUpdated(uint256 indexed agentId, uint32 completedJobs, uint32 slashedJobs);
 
     // ---------------------------------------------------------------------
     // Modifiers
@@ -236,23 +237,22 @@ contract AgentRegistry is IAgentRegistry, ReentrancyGuard {
         }
     }
 
-    /// @notice Stub for the reputation counter. Wired in commit 5 with the
-    ///         ReputationUpdated event and the on-chain Bayesian score.
     function bumpCompleted(uint256 agentId) external onlyJobEscrow {
         Agent storage a = _agents[agentId];
         if (a.owner == address(0)) revert UnknownAgent();
         unchecked {
             a.completedJobs += 1;
         }
+        emit ReputationUpdated(agentId, a.completedJobs, a.slashedJobs);
     }
 
-    /// @notice Stub for the reputation counter. Wired in commit 5.
     function bumpSlashed(uint256 agentId) external onlyJobEscrow {
         Agent storage a = _agents[agentId];
         if (a.owner == address(0)) revert UnknownAgent();
         unchecked {
             a.slashedJobs += 1;
         }
+        emit ReputationUpdated(agentId, a.completedJobs, a.slashedJobs);
     }
 
     // ---------------------------------------------------------------------
@@ -297,5 +297,43 @@ contract AgentRegistry is IAgentRegistry, ReentrancyGuard {
 
     function pendingJobs(uint256 agentId) external view returns (uint32) {
         return _agents[agentId].pendingJobs;
+    }
+
+    function completedJobs(uint256 agentId) external view returns (uint32) {
+        return _agents[agentId].completedJobs;
+    }
+
+    function slashedJobs(uint256 agentId) external view returns (uint32) {
+        return _agents[agentId].slashedJobs;
+    }
+
+    // ---------------------------------------------------------------------
+    // Reputation — Bayesian score on a 0-100 scale
+    // ---------------------------------------------------------------------
+
+    /// @notice Reputation score derived from a Beta-Binomial posterior mean
+    ///         with prior `Beta(alpha = 2, beta = 1)`.
+    ///
+    ///         score = (completed + alpha) / (completed + slashed + alpha + beta) * 100
+    ///
+    /// @dev    Properties this formula gives us:
+    ///         - A fresh agent (0/0) starts at 66, not 100. This prevents a
+    ///           spam attack where someone registers, lands one lucky call,
+    ///           looks "perfect", and steals trust from real long-running
+    ///           providers.
+    ///         - One slash is recoverable: a 0/1 agent is at 50, not 0.
+    ///         - Evidence accumulates: 100/5 (94) beats 2/0 (80) because
+    ///           the long-running provider has a larger sample size.
+    ///
+    ///         Returning a uint8 keeps the value cheap to read from other
+    ///         contracts and trivial to render in a UI badge.
+    function reputationScore(uint256 agentId) external view returns (uint8) {
+        Agent storage a = _agents[agentId];
+        if (a.owner == address(0)) return 0;
+        uint256 alpha = 2;
+        uint256 beta = 1;
+        uint256 numerator = uint256(a.completedJobs) + alpha;
+        uint256 denominator = uint256(a.completedJobs) + uint256(a.slashedJobs) + alpha + beta;
+        return uint8((numerator * 100) / denominator);
     }
 }

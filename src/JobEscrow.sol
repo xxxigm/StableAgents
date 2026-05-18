@@ -41,8 +41,10 @@ contract JobEscrow is IJobEscrow, ReentrancyGuard, EIP712 {
     error AgentNotActive();
     error InvalidStatus();
     error DeadlineExceeded();
+    error DeadlineNotReached();
     error InvalidSignature();
     error JobIdCollision();
+    error ReceiptAlreadyUsed();
 
     // ---------------------------------------------------------------------
     // Types
@@ -82,6 +84,14 @@ contract JobEscrow is IJobEscrow, ReentrancyGuard, EIP712 {
     mapping(bytes32 => Job) internal _jobs;
     uint256 public nonce; // global counter, bumped on every openJob
 
+    /// @notice EIP-712 digests of receipts that have already been
+    ///         consumed. Even though a job can only be Completed once,
+    ///         this is a defense-in-depth check: it makes it impossible
+    ///         to ever re-use the exact same `(jobId, responseHash)`
+    ///         signature, regardless of any future code path that might
+    ///         touch the Job struct.
+    mapping(bytes32 => bool) public usedReceipts;
+
     // ---------------------------------------------------------------------
     // Events
     // ---------------------------------------------------------------------
@@ -95,6 +105,7 @@ contract JobEscrow is IJobEscrow, ReentrancyGuard, EIP712 {
         uint32 deadline
     );
     event ReceiptAccepted(bytes32 indexed jobId, bytes32 responseHash);
+    event JobSlashed(bytes32 indexed jobId, uint256 refunded, uint256 slashed);
 
     // ---------------------------------------------------------------------
     // Constructor
@@ -183,6 +194,10 @@ contract JobEscrow is IJobEscrow, ReentrancyGuard, EIP712 {
         if (block.timestamp > j.deadline) revert DeadlineExceeded();
 
         bytes32 digest = hashReceipt(Receipt({ jobId: jobId, responseHash: responseHash }));
+
+        if (usedReceipts[digest]) revert ReceiptAlreadyUsed();
+        usedReceipts[digest] = true;
+
         address signer = ECDSA.recover(digest, signature);
 
         IAgentRegistry.AgentView memory a = registry.getAgent(j.agentId);
@@ -197,6 +212,39 @@ contract JobEscrow is IJobEscrow, ReentrancyGuard, EIP712 {
         usdc.safeTransfer(a.owner, j.amount);
 
         emit ReceiptAccepted(jobId, responseHash);
+    }
+
+    // ---------------------------------------------------------------------
+    // Close a job — timeout path (anyone can poke; usually the caller)
+    // ---------------------------------------------------------------------
+
+    function claimTimeout(bytes32 jobId) external nonReentrant {
+        Job storage j = _jobs[jobId];
+        if (j.status != JobStatus.Pending) revert InvalidStatus();
+        if (block.timestamp <= j.deadline) revert DeadlineNotReached();
+
+        j.status = JobStatus.Slashed;
+
+        IAgentRegistry.AgentView memory a = registry.getAgent(j.agentId);
+        uint256 slashAmount = (a.stake * a.slashBps) / 10_000;
+
+        // Ordering matters here:
+        //   1. Close the registry's pending-job slot first so accounting
+        //      is consistent before any external transfer.
+        //   2. Bump the slashed counter (this is where the reputation
+        //      score reacts; emit ReputationUpdated downstream).
+        //   3. Refund the caller from the escrowed amount.
+        //   4. Slash the stake — the registry pulls from its own balance
+        //      and forwards to the caller as a penalty.
+        registry.markJobClosed(j.agentId);
+        registry.bumpSlashed(j.agentId);
+        usdc.safeTransfer(j.caller, j.amount);
+
+        if (slashAmount > 0) {
+            registry.slash(j.agentId, slashAmount, j.caller);
+        }
+
+        emit JobSlashed(jobId, j.amount, slashAmount);
     }
 
     // ---------------------------------------------------------------------

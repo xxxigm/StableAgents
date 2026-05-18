@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Layout } from "./components/Layout";
 import { Home } from "./pages/Home";
 import { Agents } from "./pages/Agents";
+import { Activity } from "./pages/Activity";
 import { AgentTable } from "./components/AgentTable";
 import { OpenJobDialog } from "./components/OpenJobDialog";
 import { SubmitReceiptDialog } from "./components/SubmitReceiptDialog";
@@ -27,7 +28,7 @@ export default function App() {
             ) : tab === "jobs" ? (
                 <JobsTab onSubmitReceipt={() => setReceiptOpen(true)} onPick={setPicked} />
             ) : (
-                <Placeholder tab={tab} />
+                <Activity />
             )}
 
             <OpenJobDialog open={picked !== null} onClose={() => setPicked(null)} agent={picked} />
@@ -71,11 +72,3 @@ function JobsTab({
     );
 }
 
-function Placeholder({ tab }: { tab: string }) {
-    return (
-        <div className="grid place-items-center py-24 text-center">
-            <p className="text-eyebrow uppercase text-zinc-500">{tab}</p>
-            <p className="mt-2 text-sm text-zinc-400">Lands in a later commit.</p>
-        </div>
-    );
-}

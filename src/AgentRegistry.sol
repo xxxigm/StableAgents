@@ -7,6 +7,12 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 
 import { IAgentRegistry } from "./interfaces/IAgentRegistry.sol";
 
+/// @dev Narrow slice of the ERC-8004 IdentityRegistry. Only ownerOf is
+///      consumed at runtime; the rest of the ERC-721 surface is irrelevant.
+interface IERC8004Identity {
+    function ownerOf(uint256 tokenId) external view returns (address);
+}
+
 /// @title AgentRegistry
 /// @notice On-chain catalog of accountable AI agents on Arc Testnet.
 ///
@@ -39,6 +45,7 @@ contract AgentRegistry is IAgentRegistry, ReentrancyGuard {
     error UnknownAgent();
     error InsufficientStake();
     error EscrowAlreadyWired();
+    error NotIdentityHolder();
 
     // ---------------------------------------------------------------------
     // Constants
@@ -47,6 +54,11 @@ contract AgentRegistry is IAgentRegistry, ReentrancyGuard {
     uint32 public constant MIN_RESPONSE_TIME = 5; // seconds
     uint32 public constant MAX_SLASH_BPS = 10_000;
     uint32 public constant UNSTAKE_COOLDOWN = 1 hours;
+
+    /// @notice ERC-8004 IdentityRegistry on Arc Testnet. Hardcoded because
+    ///         it is canonical for this network — see Arc docs:
+    ///         https://docs.arc.io/arc/tutorials/register-your-first-ai-agent
+    address public constant IDENTITY_REGISTRY = 0x8004A818BFB912233c491871b3d84c89A494BD9e;
 
     // ---------------------------------------------------------------------
     // Types & storage
@@ -76,6 +88,9 @@ contract AgentRegistry is IAgentRegistry, ReentrancyGuard {
     mapping(address => uint256) public agentIdOf; // owner => id, 0 = none
     uint256 public nextAgentId = 1;
 
+    /// @notice agentId => ERC-8004 identity tokenId (0 = no identity bound)
+    mapping(uint256 => uint256) public identityTokenOf;
+
     // ---------------------------------------------------------------------
     // Events
     // ---------------------------------------------------------------------
@@ -97,6 +112,7 @@ contract AgentRegistry is IAgentRegistry, ReentrancyGuard {
     event SignerUpdated(uint256 indexed agentId, address newSigner);
     event JobEscrowSet(address indexed escrow);
     event ReputationUpdated(uint256 indexed agentId, uint32 completedJobs, uint32 slashedJobs);
+    event IdentityBound(uint256 indexed agentId, uint256 indexed tokenId);
 
     // ---------------------------------------------------------------------
     // Modifiers
@@ -173,6 +189,60 @@ contract AgentRegistry is IAgentRegistry, ReentrancyGuard {
         emit AgentRegistered(
             agentId, msg.sender, signer, stakeAmount, pricePerJob, maxResponseTime, slashBps, endpoint
         );
+    }
+
+    /// @notice Tier-2 registration that binds an ERC-8004 IdentityRegistry
+    ///         NFT to the agent record at creation time. The caller must
+    ///         currently own `identityTokenId` in the canonical Arc
+    ///         IdentityRegistry; the binding then makes the agent's
+    ///         on-chain identity portable across other Arc protocols that
+    ///         consume ERC-8004.
+    ///
+    /// @dev    The legacy `register()` path stays untouched so existing
+    ///         agents do not need to migrate or re-stake.
+    function registerWithIdentity(
+        uint256 identityTokenId,
+        address signer,
+        uint256 stakeAmount,
+        uint256 pricePerJob,
+        uint32 maxResponseTime,
+        uint32 slashBps,
+        string calldata endpoint
+    ) external nonReentrant returns (uint256 agentId) {
+        if (IERC8004Identity(IDENTITY_REGISTRY).ownerOf(identityTokenId) != msg.sender) {
+            revert NotIdentityHolder();
+        }
+
+        if (agentIdOf[msg.sender] != 0) revert AlreadyRegistered();
+        if (stakeAmount < minStake) revert BelowMinStake();
+        if (slashBps > MAX_SLASH_BPS) revert InvalidSlashBps();
+        if (maxResponseTime < MIN_RESPONSE_TIME) revert InvalidResponseTime();
+        if (signer == address(0)) revert InvalidSigner();
+
+        agentId = nextAgentId++;
+        _agents[agentId] = Agent({
+            owner: msg.sender,
+            signer: signer,
+            stake: stakeAmount,
+            pricePerJob: pricePerJob,
+            maxResponseTime: maxResponseTime,
+            slashBps: slashBps,
+            deactivatedAt: 0,
+            pendingJobs: 0,
+            completedJobs: 0,
+            slashedJobs: 0,
+            endpoint: endpoint,
+            active: true
+        });
+        agentIdOf[msg.sender] = agentId;
+        identityTokenOf[agentId] = identityTokenId;
+
+        usdc.safeTransferFrom(msg.sender, address(this), stakeAmount);
+
+        emit AgentRegistered(
+            agentId, msg.sender, signer, stakeAmount, pricePerJob, maxResponseTime, slashBps, endpoint
+        );
+        emit IdentityBound(agentId, identityTokenId);
     }
 
     function deactivate(uint256 agentId) external {
@@ -305,6 +375,12 @@ contract AgentRegistry is IAgentRegistry, ReentrancyGuard {
 
     function slashedJobs(uint256 agentId) external view returns (uint32) {
         return _agents[agentId].slashedJobs;
+    }
+
+    /// @notice True iff this agent registered via `registerWithIdentity`
+    ///         and therefore carries an ERC-8004 identity binding.
+    function hasIdentity(uint256 agentId) external view returns (bool) {
+        return identityTokenOf[agentId] != 0;
     }
 
     // ---------------------------------------------------------------------

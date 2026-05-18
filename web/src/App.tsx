@@ -1,19 +1,27 @@
-// Placeholder shell — replaced in commit 16 with the real Layout/Nav and
-// in commits 17-19 with the page tree. We render a quick scaffold here
-// so the build pipeline can be exercised end-to-end immediately.
+import { useState } from "react";
+import { Layout } from "./components/Layout";
+import { Home } from "./pages/Home";
 
 export default function App() {
+    // Tiny in-memory router — react-router would be overkill for three tabs.
+    const [tab, setTab] = useState("agents");
+
     return (
-        <main className="grid h-full place-items-center">
-            <div className="text-center">
-                <p className="font-mono text-xs uppercase tracking-widest text-zinc-500">
-                    stableagents
-                </p>
-                <h1 className="mt-2 text-2xl font-semibold tracking-tight">Scaffolded.</h1>
-                <p className="mt-2 text-sm text-zinc-400">
-                    Run <code className="font-mono text-zinc-300">npm run dev</code> to start.
-                </p>
-            </div>
-        </main>
+        <Layout active={tab} onSelect={setTab}>
+            {tab === "agents" ? (
+                <Home />
+            ) : (
+                <Placeholder tab={tab} />
+            )}
+        </Layout>
+    );
+}
+
+function Placeholder({ tab }: { tab: string }) {
+    return (
+        <div className="grid place-items-center py-24 text-center">
+            <p className="text-eyebrow uppercase text-zinc-500">{tab}</p>
+            <p className="mt-2 text-sm text-zinc-400">Lands in a later commit.</p>
+        </div>
     );
 }

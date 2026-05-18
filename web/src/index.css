@@ -1,8 +1,28 @@
+@import url("https://rsms.me/inter/inter.css");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Design tokens land in commit 16 alongside the dark theme. */
+/* ------------------------------------------------------------------ */
+/*  Design tokens — kept here (CSS layer) so they are accessible from  */
+/*  raw style attributes and from third-party charts that do not       */
+/*  understand Tailwind classes.                                       */
+/* ------------------------------------------------------------------ */
+
+:root {
+    --surface-0: rgb(9 9 11);
+    --surface-1: rgb(15 15 18);
+    --surface-2: rgb(24 24 27);
+    --line: rgb(39 39 42);
+    --line-strong: rgb(63 63 70);
+    --text-0: rgb(244 244 245);
+    --text-1: rgb(161 161 170);
+    --text-2: rgb(113 113 122);
+    --accent: rgb(132 204 22);
+    --danger: rgb(244 63 94);
+}
 
 html,
 body,
@@ -11,7 +31,24 @@ body,
 }
 
 body {
+    background-color: var(--surface-0);
+    color: var(--text-0);
     font-feature-settings: "cv11", "ss01", "ss03";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+}
+
+/* Pure decorative grid used as the page background watermark. */
+.bg-grid {
+    background-image:
+        linear-gradient(to right, rgb(255 255 255 / 0.025) 1px, transparent 1px),
+        linear-gradient(to bottom, rgb(255 255 255 / 0.025) 1px, transparent 1px);
+    background-size: 56px 56px;
+}
+
+/* Numeric values — tabular figures so columns of stats align even when
+   the digit widths differ. */
+.tnum {
+    font-variant-numeric: tabular-nums;
+    font-family: theme("fontFamily.mono");
 }

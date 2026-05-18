@@ -1,18 +1,26 @@
 import { useState } from "react";
 import { Layout } from "./components/Layout";
 import { Home } from "./pages/Home";
+import { Agents } from "./pages/Agents";
 
 export default function App() {
-    // Tiny in-memory router — react-router would be overkill for three tabs.
-    const [tab, setTab] = useState("agents");
+    // Tiny in-memory router — three tabs do not warrant react-router.
+    const [tab, setTab] = useState<"agents" | "jobs" | "activity">("agents");
 
     return (
-        <Layout active={tab} onSelect={setTab}>
-            {tab === "agents" ? (
-                <Home />
-            ) : (
-                <Placeholder tab={tab} />
-            )}
+        <Layout active={tab} onSelect={(id) => setTab(id as typeof tab)}>
+            <div className="space-y-16">
+                {tab === "agents" ? (
+                    <>
+                        <Home />
+                        <section id="agents">
+                            <Agents />
+                        </section>
+                    </>
+                ) : (
+                    <Placeholder tab={tab} />
+                )}
+            </div>
         </Layout>
     );
 }

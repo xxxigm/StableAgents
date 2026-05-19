@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useWriteContract } from "wagmi";
+import { useAccount, useWriteContract } from "wagmi";
 
 import { useActivity, type ActivityItem } from "../hooks/useActivity";
 import { jobEscrowAbi } from "../lib/abi/jobEscrow";
@@ -14,6 +14,7 @@ interface ActivityFeedProps {
 
 export function ActivityFeed({ onSubmitReceipt }: ActivityFeedProps) {
     const { data, isLoading } = useActivity();
+    const { address } = useAccount();
     const items = data ?? [];
 
     // Tick once per second so deadline countdowns / "Claim timeout" enable
@@ -46,7 +47,7 @@ export function ActivityFeed({ onSubmitReceipt }: ActivityFeedProps) {
                 <ol className="divide-y divide-line">
                     {items.map((item, i) => (
                         <li key={`${item.txHash}-${i}`} className="px-4 py-3">
-                            <Row item={item} now={now} onSubmitReceipt={onSubmitReceipt} />
+                    <Row item={item} now={now} onSubmitReceipt={onSubmitReceipt} connectedAddress={address} />
                         </li>
                     ))}
                 </ol>
@@ -59,10 +60,12 @@ function Row({
     item,
     now,
     onSubmitReceipt,
+    connectedAddress,
 }: {
     item: ActivityItem;
     now: number;
     onSubmitReceipt?: (jobId: `0x${string}`) => void;
+    connectedAddress?: `0x${string}`;
 }) {
     const dotTone =
         item.kind === "opened"
@@ -82,6 +85,12 @@ function Row({
     const deadline = item.deadline ?? 0;
     const pastDeadline = isOpenAndPending && now >= deadline;
     const secsLeft = isOpenAndPending && deadline > now ? deadline - now : 0;
+    // Only the job caller (Robot A) can see Submit receipt is irrelevant for them;
+    // Submit receipt is for the agent (Robot B) — show it only to the agent owner.
+    // Since we don't store agent owner in ActivityItem, we show it to anyone who
+    // is NOT the caller (heuristic: caller hired the agent, provider is someone else).
+    const isCaller = connectedAddress?.toLowerCase() === item.caller?.toLowerCase();
+    const canSubmitReceipt = isOpenAndPending && !pastDeadline && onSubmitReceipt && !isCaller && !!connectedAddress;
 
     return (
         <div className="flex flex-wrap items-center gap-3 text-sm">
@@ -89,6 +98,11 @@ function Row({
             <span className="text-zinc-200">{label}</span>
             {item.kind !== "accepted" && item.agentId > 0n ? (
                 <span className="tnum text-xs text-zinc-500">agent #{item.agentId.toString()}</span>
+            ) : null}
+            {isCaller && item.kind === "opened" ? (
+                <span className="rounded-full border border-blue-500/30 bg-blue-500/10 px-1.5 py-0.5 font-mono text-[9px] text-blue-400">
+                    your job
+                </span>
             ) : null}
             {isOpenAndPending ? (
                 <span
@@ -102,16 +116,20 @@ function Row({
             <span className="tnum ml-auto text-xs text-zinc-500">
                 {item.amount ? `$${formatUsdc(item.amount)}` : ""}
             </span>
-            {isOpenAndPending && onSubmitReceipt ? (
+            {isCaller && isOpenAndPending && !pastDeadline ? (
+                <span className="rounded-md border border-line px-2 py-1 text-[11px] text-zinc-600 cursor-not-allowed" title="You opened this job — wait for the agent to submit receipt">
+                    Submit receipt
+                </span>
+            ) : canSubmitReceipt ? (
                 <button
-                    onClick={() => onSubmitReceipt(item.jobId)}
+                    onClick={() => onSubmitReceipt!(item.jobId)}
                     className="rounded-md border border-line bg-surface-1 px-2 py-1 text-[11px] hover:bg-surface-2"
                 >
                     Submit receipt
                 </button>
             ) : null}
             {isOpenAndPending && pastDeadline ? (
-                <ClaimTimeoutButton jobId={item.jobId} />
+                <ClaimTimeoutButton jobId={item.jobId} isMyClaim={isCaller} />
             ) : null}
             <a
                 href={`https://testnet.arcscan.app/tx/${item.txHash}`}
@@ -125,7 +143,7 @@ function Row({
     );
 }
 
-function ClaimTimeoutButton({ jobId }: { jobId: `0x${string}` }) {
+function ClaimTimeoutButton({ jobId, isMyClaim }: { jobId: `0x${string}`; isMyClaim?: boolean }) {
     const { writeContractAsync, isPending } = useWriteContract();
     const [claimed, setClaimed] = useState(false);
 
@@ -147,9 +165,10 @@ function ClaimTimeoutButton({ jobId }: { jobId: `0x${string}` }) {
         <button
             onClick={onClaim}
             disabled={isPending || claimed}
+            title={isMyClaim ? "Claim refund — your USDC + slash penalty returned to you" : "Anyone can trigger this slash"}
             className="rounded-md border border-danger/40 bg-surface-1 px-2 py-1 text-[11px] text-danger hover:bg-surface-2 disabled:opacity-50"
         >
-            {claimed ? "Claimed" : isPending ? "Claiming…" : "Claim timeout"}
+            {claimed ? "Claimed" : isPending ? "Claiming…" : isMyClaim ? "Claim refund" : "Claim timeout"}
         </button>
     );
 }

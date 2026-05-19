@@ -1,3 +1,4 @@
+import { useAccount } from "wagmi";
 import { type AgentRow } from "../hooks/useAgents";
 import { ReputationDot } from "./ReputationDot";
 import { formatBps, formatDuration, formatUsdc, shortAddr } from "../lib/format";
@@ -9,8 +10,9 @@ interface AgentTableProps {
 }
 
 export function AgentTable({ rows, loading, onPick }: AgentTableProps) {
+    const { address } = useAccount();
     if (loading) return <SkeletonRows />;
-    if (rows.length === 0) return <EmptyState />;
+    if (rows.length === 0) return <EmptyState />;;
 
     return (
         <div className="overflow-hidden rounded-lg border border-line bg-surface-1">
@@ -28,13 +30,21 @@ export function AgentTable({ rows, loading, onPick }: AgentTableProps) {
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                    {rows.map((r) => (
+                {rows.map((r) => {
+                        const isOwner = address?.toLowerCase() === r.owner.toLowerCase();
+                        const canPick = onPick && !isOwner;
+                        return (
                         <tr
                             key={r.id}
-                            onClick={() => onPick?.(r)}
+                            onClick={() => canPick && onPick(r)}
+                            title={isOwner ? "You own this agent" : undefined}
                             className={
                                 "transition-colors " +
-                                (onPick ? "cursor-pointer hover:bg-surface-2" : "")
+                                (canPick
+                                    ? "cursor-pointer hover:bg-surface-2"
+                                    : isOwner
+                                    ? "cursor-not-allowed opacity-40"
+                                    : "")
                             }
                         >
                             <Td className="tnum text-center text-zinc-500">{r.id}</Td>
@@ -66,9 +76,13 @@ export function AgentTable({ rows, loading, onPick }: AgentTableProps) {
                             </Td>
                             <Td>
                                 <StatusBadge active={r.active} />
+                                {isOwner && (
+                                    <span className="ml-1 font-mono text-[9px] text-zinc-600">you</span>
+                                )}
                             </Td>
                         </tr>
-                    ))}
+                        );
+                    })}
                 </tbody>
             </table>
         </div>

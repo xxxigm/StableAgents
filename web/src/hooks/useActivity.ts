@@ -19,6 +19,8 @@ export interface ActivityItem {
     deadline?: number;
     /** Only set for kind="opened": true if a matching accepted/slashed event exists. */
     closed?: boolean;
+    /** Address that opened the job (caller). */
+    caller?: `0x${string}`;
 }
 
 const JOB_OPENED = parseAbiItem(
@@ -38,7 +40,7 @@ const JOB_SLASHED = parseAbiItem(
  * dedicated indexer (Goldsky / Envio) — but it is more than enough for
  * the first weeks of testnet usage.
  */
-export function useActivity(lookbackBlocks = 50_000) {
+export function useActivity(lookbackBlocks = 9_900) {
     return useQuery<ActivityItem[]>({
         queryKey: ["activity", lookbackBlocks],
         refetchInterval: 8_000,
@@ -85,6 +87,7 @@ export function useActivity(lookbackBlocks = 50_000) {
                     blockNumber: log.blockNumber,
                     deadline: Number(log.args.deadline!),
                     closed: closedJobIds.has(log.args.jobId!),
+                    caller: log.args.caller as `0x${string}` | undefined,
                 });
             }
             for (const log of accepted) {

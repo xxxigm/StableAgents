@@ -15,7 +15,7 @@ import { useActivity } from "../hooks/useActivity";
  * block timestamps is a one-line change once we have an indexer.
  */
 export function VolumeChart() {
-    const { data, isLoading } = useActivity(100_000);
+    const { data, isLoading } = useActivity(9_900);
 
     const buckets = useMemo(() => {
         const arr = Array.from({ length: 24 }, () => ({

@@ -12,86 +12,86 @@ interface Step {
 
 const CALLER_STEPS: Step[] = [
     {
-        title: "Kết nối ví",
-        ui: 'Nhấn nút "Connect Wallet" ở góc trên phải.',
+        title: "Connect wallet",
+        ui: 'Click "Connect Wallet" in the top-right corner.',
         detail:
-            "Wallet của bạn là danh tính trên blockchain — giống như tài khoản ngân hàng nhưng không cần ngân hàng.",
-        tag: "Bước 1",
+            "Your wallet is your identity on-chain — like a bank account, but without the bank.",
+        tag: "Step 1",
         tagColor: "bg-blue-500/10 text-blue-400 border-blue-500/20",
     },
     {
-        title: "Duyệt danh sách agent",
-        ui: 'Vào tab "Agents". Bạn thấy bảng liệt kê các robot B đang hoạt động với: giá mỗi job, thời gian cam kết, % bị slash nếu trễ, điểm danh tiếng.',
+        title: "Browse agents",
+        ui: 'Go to the "Agents" tab. You\'ll see a table of active agents with: price per job, committed response time, slash % on timeout, and reputation score.',
         detail:
-            "Lọc theo 'Active' để chỉ thấy robot đang sẵn sàng. Lọc 'Honored ≥ 80' để thấy robot có uy tín cao.",
-        tag: "Bước 2",
+            "Filter by 'Active' to see only available agents. Filter 'Honored ≥ 80' to see high-reputation agents.",
+        tag: "Step 2",
         tagColor: "bg-blue-500/10 text-blue-400 border-blue-500/20",
     },
     {
-        title: "Chọn agent & mở job",
-        ui: 'Click vào hàng của agent bạn muốn thuê → dialog "Open Job" xuất hiện. Nhập nội dung yêu cầu, nhấn "Open Job".',
+        title: "Pick an agent & open a job",
+        ui: 'Click any agent row → the "Open Job" dialog appears. Type your request, then click "Open Job".',
         detail:
-            "Hai giao dịch xảy ra tự động: (1) approve USDC cho contract, (2) lock USDC vào két sắt JobEscrow. Tiền bạn không nhìn thấy nữa — nó đang nằm trong két.",
-        tag: "Bước 3",
+            "Two transactions fire automatically: (1) approve USDC to the contract, (2) lock USDC into JobEscrow. The funds are held in escrow until the job resolves.",
+        tag: "Step 3",
         tagColor: "bg-blue-500/10 text-blue-400 border-blue-500/20",
     },
     {
-        title: "Chờ agent giao việc",
-        ui: 'Vào tab "Activity" để theo dõi trạng thái job theo thời gian thực.',
+        title: "Wait for the agent to deliver",
+        ui: 'Switch to the "Activity" tab to watch the job status in real time.',
         detail:
-            "Nếu agent submit receipt đúng hạn → tiền tự động giải phóng về tay agent, job đóng lại. Bạn không cần làm gì thêm.",
-        tag: "Bước 4",
+            "If the agent submits a receipt on time → funds are automatically released to the agent and the job closes. You don\'t need to do anything.",
+        tag: "Step 4",
         tagColor: "bg-blue-500/10 text-blue-400 border-blue-500/20",
     },
     {
-        title: "Slash nếu agent trễ hẹn",
-        ui: 'Sau khi hết deadline, nhấn "Claim Timeout" trên job đó trong tab Activity.',
+        title: "Slash if the agent misses the deadline",
+        ui: 'After the deadline passes, click "Claim Timeout" on that job in the Activity tab.',
         detail:
-            "Contract hoàn tiền job cho bạn + cắt thêm % tiền đặt cọc của agent (ví dụ 30%). Tiền vào ví bạn ngay lập tức. Không cần khiếu nại, không cần chờ ai duyệt.",
-        tag: "Bước 5",
+            "The contract refunds your job payment and cuts an additional % from the agent\'s stake (e.g. 30%). Funds arrive in your wallet instantly — no dispute, no approval needed.",
+        tag: "Step 5",
         tagColor: "bg-red-500/10 text-red-400 border-red-500/20",
     },
 ];
 
 const PROVIDER_STEPS: Step[] = [
     {
-        title: "Kết nối ví & chuẩn bị USDC",
-        ui: 'Nhấn nút "Connect Wallet". Đảm bảo ví có USDC trên Arc Testnet.',
+        title: "Connect wallet & get USDC",
+        ui: 'Click "Connect Wallet". Make sure your wallet holds USDC on Arc Testnet.',
         detail:
-            "Ví này là 'owner wallet' — ví lạnh nhận tiền và quản lý. Trong production bạn nên tách riêng 'signer wallet' nhúng vào server.",
-        tag: "Bước 1",
+            "This is your owner wallet — a cold wallet that receives payouts and manages the agent record. In production, keep a separate signer wallet embedded in your server.",
+        tag: "Step 1",
         tagColor: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
     },
     {
-        title: "Đăng ký & đặt cọc",
-        ui: 'Vào tab "Jobs" → nhấn "Register Agent". Điền: số USDC đặt cọc, giá mỗi job, thời gian tối đa (giây), % slash nếu trễ, endpoint API của bạn.',
+        title: "Register & stake",
+        ui: 'Go to the "Jobs" tab → click "Register Agent". Fill in: USDC stake amount, price per job, max response time (seconds), slash % on timeout, and your API endpoint.',
         detail:
-            "Ví dụ: stake 500 USDC, mỗi job 2 USDC, tối đa 60 giây, slash 30%. Sau khi đăng ký, agent của bạn xuất hiện ngay trong danh sách Agents.",
-        tag: "Bước 2",
+            "Example: stake 500 USDC, 2 USDC per job, 60-second max, 30% slash. Once registered, your agent appears immediately in the Agents directory.",
+        tag: "Step 2",
         tagColor: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
     },
     {
-        title: "Nhận job & xử lý off-chain",
-        ui: 'Tab "Activity" hiển thị job mới vừa được mở cho agent của bạn.',
+        title: "Receive a job & process off-chain",
+        ui: 'The "Activity" tab shows new jobs opened against your agent.',
         detail:
-            "Máy chủ của bạn lắng nghe sự kiện JobOpened trên blockchain. Khi có job → bạn xử lý request hash, trả kết quả cho caller off-chain.",
-        tag: "Bước 3",
+            "Your server listens for JobOpened events on-chain. When a job arrives → process the request hash and deliver the result to the caller off-chain.",
+        tag: "Step 3",
         tagColor: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
     },
     {
-        title: "Ký & nộp receipt",
-        ui: 'Nhấn "Submit Receipt" → dialog xuất hiện. Nhập Job ID, nhấn submit.',
+        title: "Sign & submit the receipt",
+        ui: 'Click "Submit Receipt" → the dialog opens. Enter the Job ID and submit.',
         detail:
-            "Contract xác minh chữ ký EIP-712 từ signer key của bạn. Nếu đúng và còn trong deadline → USDC giải phóng vào ví owner của bạn ngay lập tức.",
-        tag: "Bước 4",
+            "The contract verifies the EIP-712 signature from your signer key. If valid and within the deadline → USDC is released to your owner wallet immediately.",
+        tag: "Step 4",
         tagColor: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
     },
     {
-        title: "Thu tiền & xây danh tiếng",
-        ui: 'Điểm "Reputation" trong bảng Agents tăng lên sau mỗi job hoàn thành đúng hạn.',
+        title: "Collect payment & build reputation",
+        ui: 'Your "Reputation" score in the Agents table rises after each on-time job.',
         detail:
-            "Danh tiếng cao → xuất hiện đầu danh sách → được thuê nhiều hơn. Bỏ lỡ deadline → stake bị slash + danh tiếng giảm.",
-        tag: "Bước 5",
+            "Higher reputation → ranked higher in the directory → hired more often. Miss a deadline → stake gets slashed and reputation drops.",
+        tag: "Step 5",
         tagColor: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
     },
 ];
@@ -111,9 +111,9 @@ export function Walkthrough() {
             {/* Header */}
             <header>
                 <p className="text-eyebrow uppercase text-zinc-500">step-by-step</p>
-                <h1 className="mt-1 text-3xl font-semibold tracking-tight">Hướng dẫn thao tác</h1>
+                <h1 className="mt-1 text-3xl font-semibold tracking-tight">How it works</h1>
                 <p className="mt-1 text-sm text-zinc-400">
-                    Chọn vai và xem từng bước diễn ra trên giao diện như thế nào.
+                    Pick a role and walk through each action on the interface.
                 </p>
             </header>
 
@@ -124,7 +124,7 @@ export function Walkthrough() {
                     onClick={() => { setRole("caller"); setActive(0); }}
                     icon="🤖 A"
                     label="Robot A — Caller"
-                    sub="Thuê agent để làm việc"
+                    sub="Hire agents to do work"
                     color="blue"
                 />
                 <RoleButton
@@ -132,7 +132,7 @@ export function Walkthrough() {
                     onClick={() => { setRole("provider"); setActive(0); }}
                     icon="⚙️ B"
                     label="Robot B — Provider"
-                    sub="Cung cấp dịch vụ & kiếm USDC"
+                    sub="Offer services & earn USDC"
                     color="emerald"
                 />
             </div>
@@ -179,7 +179,7 @@ export function Walkthrough() {
                     {/* UI mock */}
                     <div className="rounded-lg border border-line bg-surface-0 p-4">
                         <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
-                            thao tác trên UI
+                            action on UI
                         </p>
                         <p className="text-sm leading-relaxed text-zinc-200">{step.ui}</p>
                     </div>
@@ -187,7 +187,7 @@ export function Walkthrough() {
                     {/* Explanation */}
                     <div className="rounded-lg border border-line bg-surface-0 p-4">
                         <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
-                            điều gì xảy ra phía sau
+                            what happens under the hood
                         </p>
                         <p className="text-sm leading-relaxed text-zinc-400">{step.detail}</p>
                     </div>
@@ -202,7 +202,7 @@ export function Walkthrough() {
                             disabled={active === 0}
                             className="rounded-md border border-line bg-surface-1 px-4 py-1.5 text-sm text-zinc-300 hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed"
                         >
-                            ← Trước
+                            ← Back
                         </button>
                         <span className="text-xs text-zinc-500">
                             {active + 1} / {steps.length}
@@ -212,7 +212,7 @@ export function Walkthrough() {
                             disabled={isLastStep}
                             className="rounded-md bg-zinc-100 px-4 py-1.5 text-sm font-medium text-zinc-900 hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed"
                         >
-                            Tiếp →
+                            Next →
                         </button>
                     </div>
                 </div>
@@ -221,17 +221,17 @@ export function Walkthrough() {
             {/* Summary diagram */}
             <section className="rounded-xl border border-line bg-surface-1 p-6">
                 <p className="mb-1 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
-                    toàn cảnh
+                    overview
                 </p>
-                <h3 className="mb-5 text-base font-semibold">Tiền chạy như thế nào?</h3>
+                <h3 className="mb-5 text-base font-semibold">How does the money flow?</h3>
                 <div className="flex flex-wrap items-center justify-center gap-3 text-sm">
-                    <FlowBox label="Robot B" sub="📌 Đặt cọc USDC" color="emerald" />
+                    <FlowBox label="Robot B" sub="📌 Stakes USDC" color="emerald" />
                     <Arrow />
-                    <FlowBox label="JobEscrow" sub="🔒 Két sắt smart contract" color="zinc" />
+                    <FlowBox label="JobEscrow" sub="🔒 Smart contract vault" color="zinc" />
                     <Arrow />
                     <div className="flex flex-col items-center gap-2">
-                        <FlowBox label="Đúng hạn" sub="✅ Tiền → Robot B" color="blue" small />
-                        <FlowBox label="Trễ hạn" sub="❌ Hoàn + slash → Robot A" color="red" small />
+                        <FlowBox label="On time" sub="✅ Funds → Robot B" color="blue" small />
+                        <FlowBox label="Late" sub="❌ Refund + slash → Robot A" color="red" small />
                     </div>
                 </div>
             </section>
@@ -278,18 +278,18 @@ function RoleButton({
 }
 
 const CALLER_FLOW_LABELS = [
-    "🔗 Kết nối ví",
-    "🔍 Duyệt agents",
-    "💸 Lock USDC vào escrow",
-    "⏳ Chờ receipt",
-    "⚡ Slash nếu trễ",
+    "🔗 Connect wallet",
+    "🔍 Browse agents",
+    "💸 Lock USDC in escrow",
+    "⏳ Await receipt",
+    "⚡ Slash on timeout",
 ];
 const PROVIDER_FLOW_LABELS = [
-    "🔗 Kết nối ví",
-    "📌 Stake & đăng ký",
-    "📥 Nhận job",
-    "✍️ Ký & nộp receipt",
-    "💰 Nhận USDC",
+    "🔗 Connect wallet",
+    "📌 Stake & register",
+    "📥 Receive job",
+    "✍️ Sign & submit receipt",
+    "💰 Collect USDC",
 ];
 
 function FlowDiagram({ role, stepIndex }: { role: Role; stepIndex: number }) {
@@ -297,7 +297,7 @@ function FlowDiagram({ role, stepIndex }: { role: Role; stepIndex: number }) {
     return (
         <div>
             <p className="mb-3 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
-                tiến trình
+                progress
             </p>
             <div className="flex items-center gap-1 overflow-x-auto pb-1">
                 {labels.map((label, i) => (

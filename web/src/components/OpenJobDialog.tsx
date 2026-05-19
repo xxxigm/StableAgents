@@ -1,12 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { keccak256, stringToBytes } from "viem";
-import { useAccount, useReadContract, useWriteContract } from "wagmi";
+import { useAccount, useChainId, useReadContract, useWriteContract } from "wagmi";
 
 import { Dialog } from "./Dialog";
 import { agentRegistryAbi } from "../lib/abi/agentRegistry";
 import { jobEscrowAbi } from "../lib/abi/jobEscrow";
 import { erc20Abi } from "../lib/abi/erc20";
 import { contracts } from "../lib/contracts";
+import { arcTestnet } from "../lib/chains";
 import type { AgentRow } from "../hooks/useAgents";
 import { formatBps, formatDuration, formatUsdc, shortAddr } from "../lib/format";
 
@@ -14,14 +15,29 @@ interface OpenJobDialogProps {
     open: boolean;
     onClose: () => void;
     agent: AgentRow | null;
+    /** Called after a job is successfully opened — parent can switch tabs. */
+    onJobOpened?: () => void;
 }
 
-export function OpenJobDialog({ open, onClose, agent }: OpenJobDialogProps) {
+export function OpenJobDialog({ open, onClose, agent, onJobOpened }: OpenJobDialogProps) {
     const { address } = useAccount();
+    const chainId = useChainId();
+    const onWrongChain = chainId !== arcTestnet.id;
     const [request, setRequest] = useState("");
     const { writeContractAsync, isPending } = useWriteContract();
     const [step, setStep] = useState<"compose" | "approving" | "opening" | "done">("compose");
     const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    // Reset form every time the dialog opens (new agent picked).
+    useEffect(() => {
+        if (open) {
+            setRequest("");
+            setStep("compose");
+            setTxHash(null);
+            setError(null);
+        }
+    }, [open]);
 
     // Pull live agent metadata in case the caller selected a stale row.
     const { data: live } = useReadContract({
@@ -40,11 +56,20 @@ export function OpenJobDialog({ open, onClose, agent }: OpenJobDialogProps) {
         query: { enabled: open && address !== undefined },
     });
 
+    const { data: usdcBalance } = useReadContract({
+        address: contracts.usdc,
+        abi: erc20Abi,
+        functionName: "balanceOf",
+        args: address ? [address] : undefined,
+        query: { enabled: open && address !== undefined },
+    });
+
     const price = live?.pricePerJob ?? agent?.pricePerJob ?? 0n;
     const needsApproval = useMemo(
         () => (allowance ?? 0n) < price,
         [allowance, price],
     );
+    const insufficientBalance = usdcBalance !== undefined && usdcBalance < price;
 
     if (!agent) return null;
 
@@ -55,6 +80,7 @@ export function OpenJobDialog({ open, onClose, agent }: OpenJobDialogProps) {
 
     async function onSubmit() {
         if (!agent) return;
+        setError(null);
         try {
             if (needsApproval) {
                 setStep("approving");
@@ -74,8 +100,13 @@ export function OpenJobDialog({ open, onClose, agent }: OpenJobDialogProps) {
             });
             setTxHash(hash);
             setStep("done");
+            onJobOpened?.();
         } catch (err) {
             console.error(err);
+            const msg = (err as { shortMessage?: string }).shortMessage
+                ?? (err as Error).message
+                ?? "Transaction failed";
+            setError(msg);
             setStep("compose");
         }
     }
@@ -88,6 +119,7 @@ export function OpenJobDialog({ open, onClose, agent }: OpenJobDialogProps) {
                 setStep("compose");
                 setRequest("");
                 setTxHash(null);
+                setError(null);
             }}
             eyebrow={`agent #${agent.id} · ${shortAddr(agent.owner)}`}
             title="Open a job"
@@ -97,6 +129,17 @@ export function OpenJobDialog({ open, onClose, agent }: OpenJobDialogProps) {
                 <Cell label="SLA" value={formatDuration(agent.maxResponseTime)} />
                 <Cell label="Slash on miss" value={formatBps(agent.slashBps)} />
             </dl>
+
+            {/* Wallet USDC balance */}
+            {usdcBalance !== undefined && (
+                <p className="mt-2 text-right font-mono text-[11px] text-zinc-500">
+                    Your balance:{" "}
+                    <span className={insufficientBalance ? "text-red-400" : "text-zinc-300"}>
+                        ${formatUsdc(usdcBalance)}
+                    </span>
+                    {" "}USDC
+                </p>
+            )}
 
             <label className="mt-4 block">
                 <span className="text-eyebrow uppercase text-zinc-500">Request payload</span>
@@ -112,6 +155,28 @@ export function OpenJobDialog({ open, onClose, agent }: OpenJobDialogProps) {
                     <span className="text-zinc-400">{requestHash.slice(0, 18)}…</span>
                 </p>
             </label>
+
+            {/* Wrong chain warning */}
+            {onWrongChain && (
+                <p className="mt-3 rounded-md bg-red-500/10 px-3 py-2 text-xs text-red-400">
+                    ⚠ Your wallet is not on Arc Testnet. Switch network in MetaMask before submitting.
+                </p>
+            )}
+
+            {/* Insufficient balance */}
+            {!onWrongChain && insufficientBalance && (
+                <p className="mt-3 rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-400">
+                    ⚠ Insufficient USDC balance. You need ${formatUsdc(price)} USDC to open this job.
+                    Get testnet USDC from the Arc faucet.
+                </p>
+            )}
+
+            {/* Error message */}
+            {error && (
+                <p className="mt-3 rounded-md bg-red-500/10 px-3 py-2 text-xs text-red-400">
+                    {error}
+                </p>
+            )}
 
             <div className="mt-5 flex items-center justify-end gap-2">
                 <button
@@ -132,7 +197,7 @@ export function OpenJobDialog({ open, onClose, agent }: OpenJobDialogProps) {
                 ) : (
                     <button
                         onClick={onSubmit}
-                        disabled={isPending || !address}
+                        disabled={isPending || !address || onWrongChain || insufficientBalance}
                         className="rounded-md bg-zinc-100 px-3 py-1.5 text-sm font-medium text-zinc-900 hover:bg-white disabled:opacity-50"
                     >
                         {step === "approving"

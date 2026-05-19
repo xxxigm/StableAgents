@@ -6,7 +6,7 @@ const TABS: Tab[] = [
     { id: "agents", label: "Agents" },
     { id: "jobs", label: "Jobs" },
     { id: "activity", label: "Activity" },
-    { id: "walkthrough", label: "Hướng dẫn" },
+    { id: "walkthrough", label: "Walkthrough" },
 ];
 
 interface NavProps {

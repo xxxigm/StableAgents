@@ -1,6 +1,9 @@
 import { StatPill } from "../components/StatPill";
+import { useStats } from "../hooks/useStats";
 
 export function Home() {
+    const stats = useStats();
+    const fmt = (n: number) => n.toLocaleString("en-US");
     return (
         <div className="space-y-12">
             {/* Eyebrow + hero -------------------------------------------- */}
@@ -26,7 +29,9 @@ export function Home() {
                         Browse agents
                     </a>
                     <a
-                        href="#docs"
+                        href="https://docs.arc.io/"
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="rounded-md border border-line bg-surface-1 px-4 py-2 text-sm font-medium hover:bg-surface-2"
                     >
                         Read the protocol →
@@ -34,12 +39,39 @@ export function Home() {
                 </div>
             </section>
 
-            {/* Headline stats ------------------------------------------- */}
+            {/* Headline stats — wired to AgentRegistry + JobEscrow events.
+                "Recent" window matches the useActivity lookback (50k blocks
+                ≈ ~14h on Arc). Honor rate goes blank until there is at least
+                one closed job so it never shows a meaningless 0%. */}
             <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <StatPill label="Active agents" value="—" sub="registry" />
-                <StatPill label="Jobs settled" value="—" sub="last 24h" />
-                <StatPill label="Slashes" value="—" sub="last 24h" />
-                <StatPill label="Honor rate" value="—" sub="all time" />
+                <StatPill
+                    label="Active agents"
+                    value={stats.isLoading ? "—" : fmt(stats.activeAgents)}
+                    sub={
+                        stats.totalAgents > 0
+                            ? `of ${fmt(stats.totalAgents)} registered`
+                            : "registry"
+                    }
+                />
+                <StatPill
+                    label="Jobs settled"
+                    value={stats.isLoading ? "—" : fmt(stats.jobsSettled)}
+                    sub="recent"
+                />
+                <StatPill
+                    label="Slashes"
+                    value={stats.isLoading ? "—" : fmt(stats.slashes)}
+                    sub="recent"
+                />
+                <StatPill
+                    label="Honor rate"
+                    value={
+                        stats.isLoading || stats.honorRate === null
+                            ? "—"
+                            : `${stats.honorRate}%`
+                    }
+                    sub="recent"
+                />
             </section>
 
             {/* "How it works" — three-step explainer in a deliberately

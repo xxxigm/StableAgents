@@ -1,0 +1,24 @@
+[build]
+  base    = "web"
+  command = "npm run build"
+  publish = "dist"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Content-Type = "application/javascript"
+
+[[headers]]
+  for = "/assets/*.js"
+  [headers.values]
+    Content-Type = "application/javascript"
+
+[[headers]]
+  for = "/assets/*.mjs"
+  [headers.values]
+    Content-Type = "application/javascript"
+
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200

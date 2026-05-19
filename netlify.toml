@@ -4,6 +4,11 @@
   publish = "dist"
 
 [[headers]]
+  for = "/*.svg"
+  [headers.values]
+    Content-Type = "image/svg+xml"
+
+[[headers]]
   for = "/*.js"
   [headers.values]
     Content-Type = "application/javascript"

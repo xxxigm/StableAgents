@@ -7,8 +7,14 @@
 /*.wasm
   Content-Type: application/wasm
 
+/*.svg
+  Content-Type: image/svg+xml
+
 /assets/*.js
   Content-Type: application/javascript
 
 /assets/*.mjs
   Content-Type: application/javascript
+
+/assets/*.svg
+  Content-Type: image/svg+xml

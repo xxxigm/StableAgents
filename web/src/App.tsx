@@ -9,10 +9,11 @@ import { OpenJobDialog } from "./components/OpenJobDialog";
 import { SubmitReceiptDialog } from "./components/SubmitReceiptDialog";
 
 import { useAgents, type AgentRow } from "./hooks/useAgents";
+import { Walkthrough } from "./pages/Walkthrough";
 
 export default function App() {
     // In-memory router — three tabs do not warrant react-router.
-    const [tab, setTab] = useState<"agents" | "jobs" | "activity">("agents");
+    const [tab, setTab] = useState<"agents" | "jobs" | "activity" | "walkthrough">("agents");
     const [picked, setPicked] = useState<AgentRow | null>(null);
     const [receiptOpen, setReceiptOpen] = useState(false);
     const [receiptJobId, setReceiptJobId] = useState<`0x${string}` | undefined>(undefined);
@@ -33,8 +34,10 @@ export default function App() {
                 </div>
             ) : tab === "jobs" ? (
                 <JobsTab onSubmitReceipt={() => openReceiptDialog()} onPick={setPicked} />
-            ) : (
+            ) : tab === "activity" ? (
                 <Activity onSubmitReceipt={(id) => openReceiptDialog(id)} />
+            ) : (
+                <Walkthrough />
             )}
 
             <OpenJobDialog open={picked !== null} onClose={() => setPicked(null)} agent={picked} />

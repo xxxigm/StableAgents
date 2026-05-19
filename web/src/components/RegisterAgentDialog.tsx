@@ -43,16 +43,38 @@ export function RegisterAgentDialog({ open, onClose }: RegisterAgentDialogProps)
         query: { enabled: open && !!address },
     });
 
+    const { data: minStake } = useReadContract({
+        address: contracts.agentRegistry,
+        abi: agentRegistryAbi,
+        functionName: "minStake",
+        query: { enabled: open },
+    });
+
+    const { data: existingAgentId } = useReadContract({
+        address: contracts.agentRegistry,
+        abi: agentRegistryAbi,
+        functionName: "agentIdOf",
+        args: address ? [address] : undefined,
+        query: { enabled: open && !!address },
+    });
+
+    const alreadyRegistered = !!existingAgentId && existingAgentId > 0n;
+    const minStakeUsdc = minStake ? Number(minStake) / 1e6 : 10;
+    const belowMinStake = stakeAmount > 0n && minStake !== undefined && stakeAmount < minStake;
+    const belowMinTime = maxResponseTime > 0 && maxResponseTime < 5;
     const needsApproval = stakeAmount > 0n && (allowance ?? 0n) < stakeAmount;
 
     const signerAddr = signer.trim() as `0x${string}`;
     const isValidSigner = /^0x[0-9a-fA-F]{40}$/.test(signerAddr);
     const canSubmit =
         isConnected &&
+        !alreadyRegistered &&
         isValidSigner &&
         stakeAmount > 0n &&
+        !belowMinStake &&
         priceAmount > 0n &&
-        maxResponseTime > 0 &&
+        maxResponseTime >= 5 &&
+        !belowMinTime &&
         slashBps >= 0 &&
         slashBps <= 10_000 &&
         endpoint.trim().length > 0 &&
@@ -199,12 +221,28 @@ export function RegisterAgentDialog({ open, onClose }: RegisterAgentDialogProps)
 
                     {/* Info row */}
                     <div className="rounded-md bg-surface-0 px-3 py-2 text-xs text-zinc-400 space-y-0.5">
-                        <p>Stake: <span className="text-zinc-200">{stake || "—"} USDC</span></p>
+                        <p>Minimum stake: <span className="text-zinc-200">{minStakeUsdc} USDC</span></p>
                         <p>Slash on timeout: <span className="text-zinc-200">{slashBps / 100}%</span> of stake</p>
                         {needsApproval && (
                             <p className="text-amber-400">⚠ Tx 1: approve USDC · Tx 2: register</p>
                         )}
                     </div>
+
+                    {alreadyRegistered && (
+                        <p className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-400">
+                            ⚠ This wallet is already registered as agent #{existingAgentId!.toString()}. Each address can only register once.
+                        </p>
+                    )}
+                    {belowMinStake && (
+                        <p className="rounded-md bg-red-500/10 px-3 py-2 text-xs text-red-400">
+                            Stake must be at least {minStakeUsdc} USDC.
+                        </p>
+                    )}
+                    {belowMinTime && (
+                        <p className="rounded-md bg-red-500/10 px-3 py-2 text-xs text-red-400">
+                            Max response time must be at least 5 seconds.
+                        </p>
+                    )}
 
                     {error && (
                         <p className="rounded-md bg-red-500/10 px-3 py-2 text-xs text-red-400">{error}</p>

@@ -6,6 +6,20 @@
 export const agentRegistryAbi = [
     {
         type: "function",
+        name: "minStake",
+        inputs: [],
+        outputs: [{ type: "uint256" }],
+        stateMutability: "view",
+    },
+    {
+        type: "function",
+        name: "agentIdOf",
+        inputs: [{ name: "owner", type: "address" }],
+        outputs: [{ type: "uint256" }],
+        stateMutability: "view",
+    },
+    {
+        type: "function",
         name: "nextAgentId",
         inputs: [],
         outputs: [{ type: "uint256" }],
